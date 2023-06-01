@@ -17,52 +17,26 @@ data Postre = UnPostre {
     temperatura :: Temperatura
 } deriving (Eq, Show)
 
-type Calor = Number
-type Congela = Bool
-type Elimina = Bool
 
-data Hechizo = UnHechizo {
-    llamado :: Nombre,
-    modificaPeso :: Peso,
-    modificaCalor :: Calor,
-    congela :: Congela,
-    eliminaSabores :: Elimina,
-    modificarSabores :: Sabores
-} deriving (Eq, Show)
-
-perderPeso :: Postre -> Number -> Number
-perderPeso postre numero = (peso postre) - (peso postre) * numero
-
-modificarTemperatura :: Postre -> Number -> Bool -> Number
-modificarTemperatura postre numero congela
-    |congela = 0
-    |otherwise = (temperatura postre) + numero
-
-modificarSaboresPostre :: Postre -> Hechizo -> Sabores
-modificarSaboresPostre postre hechizo
-    |eliminaSabores hechizo = []
-    |otherwise = (sabores postre) ++ (modificarSabores hechizo)
+type Hechizo = Postre -> Postre
 
 incendio :: Hechizo
-incendio = UnHechizo "incendio" 0.05 1 False False []
+incendio postre = postre {temperatura = temperatura postre + 1, peso = peso postre - peso postre * 0.05}
 
 immobulus :: Hechizo
-immobulus = UnHechizo "immobulus" 0 0 True False []
+immobulus postre = postre {temperatura = 0}
 
 wingardiumLeviosa :: Hechizo
-wingardiumLeviosa = UnHechizo "wingardiumLeviosa" 0.1 0 False False ["concentrado"] 
+wingardiumLeviosa postre = postre {sabores = sabores postre ++ ["concentrado"], peso = peso postre - peso postre * 0.1}
 
 diffindo :: Number -> Hechizo 
-diffindo numero = UnHechizo "diffindo" (numero / 100) 0 False False [] 
+diffindo numero postre = postre {peso = peso postre - peso postre * (numero / 100)}
 
 riddikulus :: Sabor -> Hechizo
-riddikulus sabor = UnHechizo "riddikulus" 0 0 False False [reverse sabor] 
+riddikulus sabor postre = postre {sabores = sabores postre ++ [reverse sabor]}
 
 avadakedavra :: Hechizo
-avadakedavra = UnHechizo "avadakedavra" 0 0 True True [] 
-
-hechizoAplicado :: Hechizo -> Postre -> Postre
-hechizoAplicado hechizo postre = postre {sabores = modificarSaboresPostre postre hechizo, peso = perderPeso postre (modificaPeso hechizo), temperatura = modificarTemperatura postre (modificaCalor hechizo) (congela hechizo)}
+avadakedavra postre = immobulus (postre {sabores = []})
 
 bizcocho :: Postre
 bizcocho = UnPostre "Bizcocho" ["fruta", "crema"] 100 25
@@ -77,17 +51,17 @@ type Postres = [Postre]
 estaListo :: Postre -> Bool
 estaListo postre = (sabores postre) /= [] && (peso postre) > 0 && (temperatura postre) > 0
 
-estanListos :: Postres -> Hechizo -> Bool
-estanListos postres hechizo = all estaListo (map (hechizoAplicado hechizo) postres)
+estanListos :: Hechizo -> Postres -> Bool
+estanListos hechizo postres = all estaListo (map hechizo postres)
 
-postresListos :: Postres -> Hechizo -> Postres
-postresListos postres hechizo = filter estaListo (map (hechizoAplicado hechizo) postres)
+postresListos :: Hechizo -> Postres -> Postres
+postresListos hechizo postres  = filter estaListo (map hechizo postres)
 
-pesosPostresListos :: Postres -> Hechizo -> [Number]
-pesosPostresListos postres hechizo = map (peso) (postresListos postres hechizo)
+pesosPostresListos :: Hechizo -> Postres -> [Number]
+pesosPostresListos hechizo postres = map (peso) (postresListos hechizo postres)
 
-pesoPromedio :: Postres -> Hechizo -> Number
-pesoPromedio postres hechizo = (sum (pesosPostresListos postres hechizo)) / (length (postresListos postres hechizo))
+pesoPromedio :: Hechizo -> Postres -> Number
+pesoPromedio hechizo postres = (sum (pesosPostresListos hechizo postres)) / (length (postresListos hechizo postres))
 
 type Cantidad = Number
 
@@ -100,15 +74,14 @@ harry :: Mago
 harry = UnMago [incendio, riddikulus "mila"] 0
 
 tieneHechizo :: Mago -> Hechizo -> Bool
-tieneHechizo mago hechizo = elem hechizo (hechizos mago)
+tieneHechizo mago hechizo  
 
 sumaHorrocrux :: Hechizo -> Postre-> Number
 sumaHorrocrux hechizo postre
-    |(hechizoAplicado hechizo postre) == (hechizoAplicado avadakedavra postre) = 1
+    |hechizo postre == avadakedavra postre = 1
     |otherwise = 0
 
 defensaCocinasOscuras :: Mago -> Hechizo -> Postre -> Mago
 defensaCocinasOscuras mago hechizo postre
     |not (tieneHechizo mago hechizo) = mago {hechizos = (hechizos mago) ++ [hechizo], horrorcrux = (horrorcrux mago) + (sumaHorrocrux hechizo postre)}
     |otherwise = mago {horrorcrux = (horrorcrux mago) + (sumaHorrocrux hechizo postre)}
-
